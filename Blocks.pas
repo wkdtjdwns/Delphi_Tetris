@@ -107,7 +107,6 @@ type
     function MakeNewBlock(): Boolean;
     procedure BrokeBlocks();
     procedure ArrangeBlocks();
-    procedure Sound(soundPath: string);
   published
     property MatrixBlock: TMatrixBlock read FMatrixBlock write FMatrixBlock;
     property Level: integer read FLevel write FLevel;
@@ -798,7 +797,6 @@ begin
     begin
       { 제거된 줄 수 증가 + 사운드 출력 }
       Inc(FBrokenBlockCnt);
-      Sound('C:\Windows\Media\tada.wav');
 
       { 해당 줄을 비우고 배경 색(검은 색)으로 초기화 }
       for j := 0 to TETRIS_GROUND_X_NUM - 1 do
@@ -905,19 +903,6 @@ ProcessArrangeBlocks:
       goto ProcessArrangeBlocks;
     end;
   end;
-end;
-
-{ 효과음 출력 }
-procedure TTetris.Sound(soundPath: string);
-var
-  path: string;
-begin
-  path := soundPath;
-
-  if FileExists(soundPath) then
-    PlaySound(PChar(soundPath), 0, SND_FILENAME or SND_ASYNC)
-  else
-    ShowMessage('사운드 파일이 없습니다: ' + soundPath);
 end;
 
 initialization

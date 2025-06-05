@@ -4,13 +4,13 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, Blocks, ExtCtrls;
+  Dialogs, Blocks, ExtCtrls, MMSystem;
 
 type
   { 타이머 대기 상태 정의 }
   TTimerWaitStatus = (
     TimerWaitStatus_BrokeBlocks,    // 블록 파괴 상태
-    TimerWaitStatus_ArrangeBlocs,   // 블록 정렬 상태
+    TimerWaitStatus_ArrangeBlocs,   // 블록 정렬 상태 (이 상태는 원래 코드에선 안 쓰임)
     TimerWaitStatus_MakeNewBlock    // 새 블록 생성 상태
   );
 
@@ -18,7 +18,6 @@ type
     TimerMain: TTimer;      // 메인 게임 루프 타이머
     Background: TPanel;     // 게임 배경 패널
     TimerWait: TTimer;      // 대기 처리용 타이머
-    TimerSound: TTimer;     // 사운드 처리용 타이머
 
     // 이벤트 핸들러
     procedure FormCreate(Sender: TObject);
@@ -27,24 +26,45 @@ type
     procedure TimerMainTimer(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure TimerWaitTimer(Sender: TObject);
-    procedure TimerSoundTimer(Sender: TObject);
-    
+
   private
-    { Private declarations }
+    procedure PlaySoundEffect(const path: string);
+    procedure PlayBGMRepeat(const FileName: string);
+    procedure StopBGM;
   public
     procedure ProcessTetrisProcResult(ProcResult: TTetrisProcResult);
-    { Public declarations }
   end;
 
 var
   Main: TMain;                              // 메인 폼 인스턴스
   Tetris: TTetris;                          // 테트리스 게임 객체
-  TimerWaitStatus: TTimerWaitStatus;        // 타이머 대기 상태
+  TimerWaitStatus: TTimerWaitStatus;       // 타이머 대기 상태
   soundCnt: integer;                        // 사운드 재생 횟수
 
 implementation
 
 {$R *.dfm}
+
+{ BGM 반복 재생 }
+procedure TMain.PlayBGMRepeat(const FileName: string);
+begin
+  mciSendString('close bgm', nil, 0, 0);
+  mciSendString(PChar('open "' + FileName + '" alias bgm'), nil, 0, 0);
+  mciSendString('play bgm repeat', nil, 0, 0);
+end;
+
+{ BGM 중지 }
+procedure TMain.StopBGM;
+begin
+  mciSendString('stop bgm', nil, 0, 0);
+  mciSendString('close bgm', nil, 0, 0);
+end;
+
+{ 효과음 재생 }
+procedure TMain.PlaySoundEffect(const path: string);
+begin
+  sndPlaySound(PChar(path), SND_ASYNC or SND_NODEFAULT);
+end;
 
 { 폼 생성 }
 procedure TMain.FormCreate(Sender: TObject);
@@ -68,9 +88,11 @@ begin
 
   { 타이머 초기화 }
   TimerWait.Enabled := false;
-  TimerSound.Enabled := true;
   TimerMain.Interval := 1;
   TimerMain.Enabled := true;
+
+  { BGM 무한 반복 재생 시작 }
+  PlayBGMRepeat(ExtractFilePath(Application.ExeName) + 'Sound\BGM.mp3');
 end;
 
 { 게임 화면 그리기 }
@@ -93,7 +115,11 @@ end;
 { 폼 소멸 }
 procedure TMain.FormDestroy(Sender: TObject);
 begin
-  Tetris.Free;  // 메모리 해제
+  { BGM 종료 }
+  StopBGM;
+
+  { 메모리 해제 }
+  Tetris.Free;
 end;
 
 { 메인 타이머 이벤트 }
@@ -188,7 +214,6 @@ end;
 procedure TMain.TimerWaitTimer(Sender: TObject);
 begin
   case TimerWaitStatus of
-    { 블록 파괴 }
     TimerWaitStatus_BrokeBlocks:
     begin
       { 완성된 줄만큼 블록 파괴 }
@@ -196,12 +221,13 @@ begin
 
       { 파괴된 블록 수만큼 사운드 출력 준비 }
       soundCnt := Tetris.BrokenBlockCnt;
-      if (soundCnt <> 0) then
+      if soundCnt <> 0 then
       begin
-        TimerSound.Interval := 1;
-        TimerSound.Enabled := true;
+        { 효과음 재생 }
+        PlaySoundEffect(ExtractFilePath(Application.ExeName) + 'Sound\Line Clear.mp3');
+        Dec(soundCnt);
       end;
-      
+
       { 블록들 아래로 정렬 }
       Tetris.ArrangeBlocks();
 
@@ -240,22 +266,6 @@ begin
       end;
     end;
   end;
-end;
-
-{ 사운드 재생 타이머 설정 }
-procedure TMain.TimerSoundTimer(Sender: TObject);
-begin
-  { 재생할 사운드가 남았을 때 }
-  if (soundCnt <> 0) then
-  begin
-    { 카운트 감소 + 대기 }
-    Dec(soundCnt);
-    TimerSound.Interval := 10;
-  end
-
-  { 재생할 사운드 X (모든 사운드 재생) }
-  else if soundCnt = 0 then
-    TimerSound.Enabled := false; // 사운드 타이머 정지
 end;
 
 end.

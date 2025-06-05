@@ -11601,9 +11601,4 @@ object Main: TMain
     OnTimer = TimerWaitTimer
     Left = 64
   end
-  object TimerSound: TTimer
-    Interval = 300
-    OnTimer = TimerSoundTimer
-    Left = 32
-  end
 end
